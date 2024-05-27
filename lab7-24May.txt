@@ -1,0 +1,151 @@
+########################### Design Problem Solving ###########################
+## 1.  Global Configuration Management: Design a system that ensures a single, globally accessible configuration object without access conflicts.
+
+import java.util.HashMap;
+import java.util.Map;
+public class ConfigurationManager {
+    private static ConfigurationManager instance;
+    private Map<String, Object> config;
+    private ConfigurationManager() {
+        config = new HashMap<>();
+    }
+    public static ConfigurationManager getInstance() {
+        if (instance == null) {
+            instance = new ConfigurationManager();
+        }
+        return instance;
+    }
+    public void setConfig(String key, Object value) {
+        config.put(key, value);
+    }
+    public Object getConfig(String key) {
+        return config.get(key);
+    }
+    public static void main(String[] args) {
+        ConfigurationManager configManager = ConfigurationManager.getInstance();
+        // Setting configurations
+        configManager.setConfig("api_key", "your_api_key");
+        configManager.setConfig("timeout", 30);
+        // Getting configurations
+        String apiKey = (String) configManager.getConfig("api_key");
+        int timeout = (int) configManager.getConfig("timeout");
+        System.out.println("API Key: " + apiKey); // Output: your_api_key
+        System.out.println("Timeout: " + timeout); // Output: 30
+    }
+}
+
+## 2. Dynamic Object Creation Based on User Input: Implement a system to dynamically create various types of user interface elements based on user actions.
+import java.util.Scanner;
+public class DynamicObjectCreation {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter the class name to create an object:");
+        String className = scanner.nextLine();
+        try {
+            // Dynamically create an instance of the specified class
+            Class<?> clazz = Class.forName(className);
+            Object obj = clazz.getDeclaredConstructor().newInstance();
+            // Output the created object
+            System.out.println("Object created: " + obj.getClass().getSimpleName());
+        } catch (ClassNotFoundException e) {
+            System.out.println("Class not found: " + className);
+        } catch (Exception e) {
+            System.out.println("Error creating object: " + e.getMessage());
+        } finally {
+            scanner.close();
+        }
+    }
+}
+
+## 3. State Change Notification Across System Components: Ensure components are notified about changes in the state of other parts without creating tight coupling.
+import java.util.ArrayList;
+import java.util.List;
+// Subject interface
+interface Subject {
+    void addObserver(Observer observer);
+    void removeObserver(Observer observer);
+    void notifyObservers();
+}
+// Concrete subject class
+class ConcreteSubject implements Subject {
+    private int state;
+    private List<Observer> observers = new ArrayList<>();
+    public int getState() {
+        return state;
+    }
+    public void setState(int state) {
+        this.state = state;
+        notifyObservers();
+    }
+    @Override
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+    @Override
+    public void removeObserver(Observer observer) {
+        observers.remove(observer);
+    }
+    @Override
+    public void notifyObservers() {
+        for (Observer observer : observers) {
+            observer.update();
+        }
+    }
+}
+// Observer interface
+interface Observer {
+    void update();
+}
+// Concrete observer class
+class ConcreteObserver implements Observer {
+    private ConcreteSubject subject;
+    public ConcreteObserver(ConcreteSubject subject) {
+        this.subject = subject;
+        this.subject.addObserver(this);
+    }
+    @Override
+    public void update() {
+        System.out.println("State changed: " + subject.getState());
+    }
+}
+public class StateChangeNotification {
+    public static void main(String[] args) {
+        // Create subject
+        ConcreteSubject subject = new ConcreteSubject();
+        // Create observers
+        ConcreteObserver observer1 = new ConcreteObserver(subject);
+        ConcreteObserver observer2 = new ConcreteObserver(subject);
+        // Change state
+        subject.setState(10);
+    }
+}
+
+## 4. Efficient Management of Asynchronous Operations: Manage multiple asynchronous operations like API calls which need to be coordinated without blocking the main application workflow.
+import java.util.concurrent.CompletableFuture;
+public class AsynchronousOperationManagement {
+    public static void main(String[] args) {
+        // Asynchronous operation 1: Fetching data from a remote API
+        CompletableFuture<String> asyncOperation1 = CompletableFuture.supplyAsync(() -> {
+            // Simulate fetching data from a remote API
+            try {
+                Thread.sleep(2000); // Simulate a delay of 2 seconds
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return "Data from API";
+        });
+        // Asynchronous operation 2: Processing data
+        CompletableFuture<Void> asyncOperation2 = asyncOperation1.thenAccept(data -> {
+            // Simulate processing the fetched data
+            System.out.println("Processing data: " + data);
+        });
+        // Asynchronous operation 3: Handling completion
+        asyncOperation2.thenRun(() -> {
+            System.out.println("Async operations completed.");
+        });
+        // Main thread continues while asynchronous operations are running in the background
+        System.out.println("Main thread continues...");
+        // Wait for all asynchronous operations to complete
+        CompletableFuture.allOf(asyncOperation1, asyncOperation2).join();
+    }
+}
