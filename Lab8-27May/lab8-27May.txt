@@ -1,0 +1,1613 @@
+### swager project e-commerce Spinfood ###
+I worked on this project months ago 
+
+https://api.spinfood.services/docs/#/
+
+#
+This is a food delivery project wich includes B2B users, B2C users and Delivery users
+B2B has a restaurants, with menus, with transactions, payment methods, orders
+B2C has history, payment methods, can see menus, can see restaurants, orders
+
+# Order controller
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ParseMongoIdPipe } from '../../config/pipes/parse.mongo.id.pipe';
+//DTO´s
+import { CreateOrderDTO } from './dto/order.create.dto';
+import { OrderPatchDTO } from './dto/order.patch.dto';
+import { OrderStatusPatchDTO } from './dto/order.status.patch.dto';
+import { OrderResponseDTO } from './dto/order.response.dto';
+import { OrderFindDTO } from './dto/order.find.dto';
+// Utils
+import { OrderService } from './order.service';
+import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Types } from '../../common/decorators/types.decorator';
+import { EnumUserType } from '../../common/constants';
+import { JwtAuthGuard } from '../../common/guards/jwt.auth.guard';
+import { TypesGuard } from '../../common/guards/types.guard';
+import { ExceptionResponseError } from '../../config/exceptions/dto/exceptions.response.errors';
+import { UserJWT } from '../../common/decorators/user.jwt.decorator';
+import { RealIP } from 'nestjs-real-ip';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+
+@ApiTags('Orderes')
+@Controller('spinfood/orders')
+export class OrderController {
+  constructor(private readonly productDetailService: OrderService) {}
+
+  @Post()
+  @Types(EnumUserType.B2B, EnumUserType.B2B_PARTNER, EnumUserType.B2C_CLIENT)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBody({ type: CreateOrderDTO })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    type: OrderResponseDTO,
+    description: 'Order catalog element',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async register(@UserJWT() { _id, type }, @Body() createOrderDTO: CreateOrderDTO) {
+    const orderType = await this.productDetailService.createOrder(_id, type, createOrderDTO);
+    return orderType;
+  }
+
+  @Get()
+  @Types(EnumUserType.B2C_CLIENT)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: OrderResponseDTO,
+    isArray: true,
+    description: 'Order catalog elements',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async listOrder(@UserJWT() { _id }, @Query() orderFindDTO: OrderFindDTO) {
+    const orderType = await this.productDetailService.listOrder(_id, orderFindDTO);
+    return orderType;
+  }
+
+  @Get(':orderID')
+  @Types(EnumUserType.ADMIN, EnumUserType.B2B, EnumUserType.B2B_PARTNER, EnumUserType.B2C_CLIENT)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: OrderResponseDTO,
+    description: 'Order catalog element',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async getOrder(@Param('orderID', new ParseMongoIdPipe()) orderID: string) {
+    const orderType = await this.productDetailService.getOrder(orderID);
+    return orderType;
+  }
+
+  @Patch(':orderID')
+  @Types(EnumUserType.ADMIN, EnumUserType.B2B, EnumUserType.B2B_PARTNER, EnumUserType.B2C_CLIENT)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: OrderPatchDTO })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: OrderResponseDTO,
+    description: 'Order catalog element',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async patchStatus(
+    @Param('orderID', new ParseMongoIdPipe()) orderID: string,
+    @Body() orderStatusPatchDTO: OrderStatusPatchDTO,
+    @UserJWT() { type },
+    @RealIP() ip: string,
+  ) {
+    const orderType = await this.productDetailService.updateStatusOrder(orderID, type, orderStatusPatchDTO, ip);
+    return orderType;
+  }
+
+  @Delete(':orderID')
+  @Types(EnumUserType.ADMIN)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'It only returns a status NO_CONTENT' })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async deleteOrder(@Param('orderID', new ParseMongoIdPipe()) orderID: string) {
+    await this.productDetailService.deleteOrder(orderID);
+  }
+
+  @Get('/b2b/orders')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: OrderResponseDTO,
+    isArray: true,
+    description: 'Order catalog elements',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async listB2BOrder(@UserJWT() { sub }, @Query() orderFindDTO: OrderFindDTO) {
+    const orderType = await this.productDetailService.listOrderForB2B(sub, orderFindDTO);
+    return orderType;
+  }
+
+  @Get('/survey/last-order')
+  @Types(EnumUserType.B2C_CLIENT, EnumUserType.ADMIN)
+  @UseGuards(JwtAuthGuard, TypesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: OrderResponseDTO,
+    isArray: true,
+    description: 'Order catalog elements',
+  })
+  @ApiResponse({ type: ExceptionResponseError, description: 'Most of the errors have the following structure.' })
+  async lastOrder(@UserJWT() { _id }) {
+    const orderType = await this.productDetailService.getLastOrder(_id);
+    return orderType;
+  }
+}
+
+# order module
+import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
+import { MongooseModule } from '@nestjs/mongoose';
+import {
+  MODEL_ORDER,
+  MODEL_ORDERSTATUS,
+  MODEL_TRANSACTION,
+  MODEL_PAYMENTMETHODS,
+  MODEL_USER,
+  MODEL_TRANSACTIONTYPE,
+  MODEL_COUPON,
+  MODEL_BUSINESS,
+} from '../../common/constants';
+import { AWSModule } from '../../common/aws/aws.module';
+import { Balance_reserveModule } from '../balanceReserve/balance_reserve.module';
+import { WiiWalletLogModule } from '../wiiwalletlog/wiiwalletlog.module';
+import { BusinessMenuModule } from '../b2b/menu/menu.module';
+import { BusinessModule } from '../b2b/business/business.module';
+import { NotificationModule } from '../notifications/notification.module';
+import { OpenLineModule } from '../openlinea/openlinea.module';
+import { TransactionsModule } from '../transactions/transactions.module';
+
+//Shcemas
+import { OrderSchema } from '../../common/database_management/schemas/order.schema';
+import { OrderStatusSchema } from 'src/common/database_management/schemas/orderstatus.schema';
+import { TransactionSchema } from 'src/common/database_management/schemas/transaction.schema';
+import { PaymentMethodsSchema } from 'src/common/database_management/schemas/paymentMethods.schema';
+import { UserSchema } from '../../common/database_management/schemas/user.schema';
+import { TransactionTypeSchema } from '../../common/database_management/schemas/transactiontype.schema';
+//Controllers
+import { OrderController } from './order.controller';
+//Services
+import { OrderService } from './order.service';
+import { CouponSchema } from 'src/common/database_management/schemas/coupons.chema';
+import { CouponsModule } from '../coupons/coupons.module';
+import { EnvironmentVariablesService } from 'src/config/environment/environmentVariables.service';
+import { EnvironmentVariablesModule } from 'src/config/environment/environmentVariables.module';
+import { Utils } from 'src/common/tools/utils';
+import { JwtModule } from '@nestjs/jwt';
+import { BusinessSchema } from 'src/common/database_management/schemas/business.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: MODEL_ORDER, schema: OrderSchema },
+      { name: MODEL_ORDERSTATUS, schema: OrderStatusSchema },
+      { name: MODEL_TRANSACTION, schema: TransactionSchema },
+      { name: MODEL_PAYMENTMETHODS, schema: PaymentMethodsSchema },
+      { name: MODEL_USER, schema: UserSchema },
+      { name: MODEL_TRANSACTIONTYPE, schema: TransactionTypeSchema },
+      { name: MODEL_COUPON, schema: CouponSchema},
+      { name: MODEL_BUSINESS, schema: BusinessSchema },
+    ]),
+    HttpModule.registerAsync({
+      imports: [EnvironmentVariablesModule],
+      useFactory: async (configService: EnvironmentVariablesService) => ({
+        baseURL: "https://pt.orchextra.io",
+        headers: {
+          Authorization: `Bearer ${Utils.encodeBase64(`${configService.getOrxApiKey()}:${configService.getOrxRestSecret()}`,
+          )}`,
+        },
+      }),
+      inject: [EnvironmentVariablesService],
+    }),
+    AWSModule,
+    JwtModule,
+    Balance_reserveModule,
+    WiiWalletLogModule,
+    BusinessMenuModule,
+    BusinessModule,
+    NotificationModule,
+    OpenLineModule,
+    TransactionsModule,
+    CouponsModule
+  ],
+  controllers: [OrderController],
+  providers: [OrderService],
+})
+export class OrderModule {}
+
+# order service
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { S3Service } from '../../common/aws/s3/s3.service';
+import { Balance_reserveService } from '../balanceReserve/balance_reserve.service';
+import { WiiWalletLogService } from '../wiiwalletlog/wiiwalletlog.service';
+import { BusinessMenuService } from '../b2b/menu/menu.service';
+import { BusinessService } from '../b2b/business/business.service';
+import { NotificationService } from '../notifications/notification.service';
+import { TransactionsService } from '../transactions/transactions.service';
+//Schemas
+import { OrderDocument } from 'src/common/database_management/schemas/order.schema';
+import { OrderStatusDocument } from 'src/common/database_management/schemas/orderstatus.schema';
+import { TransactionDocument } from 'src/common/database_management/schemas/transaction.schema';
+import { UserDocument } from '../../common/database_management/schemas/user.schema';
+import { PaymentMethodsDocument } from '../../common/database_management/schemas/paymentMethods.schema';
+import { TransactionTypeDocument } from '../../common/database_management/schemas/transactiontype.schema';
+//DTO
+import { ProductDetailDTO } from './dto/productDetail.dto';
+import { ProductDetailResponseDTO } from './dto/productDetail.response.dto';
+import { CreateOrderDTO } from './dto/order.create.dto';
+import { OrderPatchDTO } from './dto/order.patch.dto';
+import { OrderResponseDTO } from './dto/order.response.dto';
+import { OrderFindDTO } from './dto/order.find.dto';
+import { Balance_reserveDTO } from '../balanceReserve/dto/balance_reserve.dto';
+import { WiiWalletLogDTO } from '../wiiwalletlog/dto/wiiwalletlog.dto';
+import { OrderB2BResponseDTO } from './dto/order.b2b.response.dto';
+import { OrderNotificationResponseDTO } from './dto/order.notification.response.dto';
+import { NotificationDTO } from '../notifications/dto/notification.dto';
+import { TransactionRegisterDTO } from '../transactions/dto/transactions.register.dto';
+import { OpenLineaReturnDTO } from '../openlinea/dto/openlinea.return.dto';
+//Utils
+import {
+  MODEL_ORDER,
+  MODEL_ORDERSTATUS,
+  MODEL_TRANSACTION,
+  MODEL_USER,
+  EnumOrderStatusName,
+  EnumPaymentMethod,
+  MODEL_PAYMENTMETHODS,
+  MODEL_TRANSACTIONTYPE,
+  EnumUserType,
+  BalanceReserveStatus,
+  EnumWiiWalletLogType,
+  EnumWiiWalletLogReferenceType,
+  EnumPushNotificationType,
+  EnumTransactionType,
+  EnumTransactionStatus,
+  EnumOrderNotificationType,
+  MODEL_COUPON,
+  ServiceType,
+  MODEL_BUSINESS,
+} from '../../common/constants';
+import { NotFoundException } from '../../config/exceptions/not.found.exception';
+import { BadRequestException } from '../../config/exceptions/bad.request.exception';
+import { NotAcceptableException } from '../../config/exceptions/not.acceptable.exception';
+import { EXCEPTION_CODES } from '../../config/exceptions/codes/exception.codes';
+import { OrderStatusPatchDTO } from './dto/order.status.patch.dto';
+import { OpenLineaService } from '../openlinea/openlinea.service';
+import * as QRCode from 'qrcode';
+import { TransactionPatchDTO } from '../transactions/dto/transaction.patch.dto';
+import { CouponsService } from '../coupons/coupons.service';
+import { CouponDocument } from 'src/common/database_management/schemas/coupons.chema';
+import { CheckRedemptionDTO } from '../coupons/dto/check-redemption.dto';
+import { BusinessDocument } from 'src/common/database_management/schemas/business.schema';
+
+@Injectable()
+export class OrderService {
+  constructor(
+    @InjectModel(MODEL_ORDER) private orderModel: Model<OrderDocument>,
+    @InjectModel(MODEL_ORDERSTATUS) private orderStatusModel: Model<OrderStatusDocument>,
+    @InjectModel(MODEL_TRANSACTION) private transactionsModel: Model<TransactionDocument>,
+    @InjectModel(MODEL_USER) private userModel: Model<UserDocument>,
+    @InjectModel(MODEL_PAYMENTMETHODS) private paymentMethodModel: Model<PaymentMethodsDocument>,
+    @InjectModel(MODEL_TRANSACTIONTYPE) private transactionTypeModel: Model<TransactionTypeDocument>,
+    @InjectModel(MODEL_COUPON) private couponModel: Model<CouponDocument>,
+    @InjectModel(MODEL_BUSINESS) private businessModel: BusinessDocument,
+    private readonly balanceReserveService: Balance_reserveService,
+    private readonly s3Service: S3Service,
+    private readonly wiiWalletLogService: WiiWalletLogService,
+    private readonly businessMenuService: BusinessMenuService,
+    private readonly businessService: BusinessService,
+    private readonly notificationService: NotificationService,
+    private readonly openLineaService: OpenLineaService,
+    private readonly transactionService: TransactionsService,
+    private readonly couponService: CouponsService,
+
+  ) {}
+
+  /**
+   * Generate a order transaction
+   * @param {CreateOrderDTO} createOrderDTO
+   * @return {*}
+   * @memberof OrderService
+   */
+  async createTransaction(createOrderDTO: CreateOrderDTO) {
+    const transaction = new TransactionRegisterDTO();
+    transaction.total = createOrderDTO.total;
+    transaction.userId = createOrderDTO.customerId.toString();
+    transaction.businessId = createOrderDTO.businessId.toString();
+    const paymentMethod = await this.paymentMethodModel.findOne({ key: createOrderDTO.paymentMethod });
+    const transactionType = await this.transactionTypeModel.findOne({ key: EnumTransactionType.producto });
+    transaction.transactionTypeId = transactionType.id;
+    transaction.paymentMethodId = paymentMethod.id;
+    return await this.transactionsModel.create(transaction);
+  }
+
+  /**
+   * Create a new productDetail
+   * @param {CreateOrderDTO} createOrderDTO
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async createOrder(userId: string, userType: EnumUserType, createOrderDTO: CreateOrderDTO): Promise<OrderResponseDTO> {
+    if (userType === EnumUserType.B2C_CLIENT) {
+      createOrderDTO.customerId = Types.ObjectId(userId);
+    }
+    
+    if (createOrderDTO.serviceType === ServiceType.delivery && !createOrderDTO.deliveryAddress) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.GENERAL, 'deliveryAddressRequired');
+    }
+    const orderStatus = await this.orderStatusModel.findOne({ name: EnumOrderStatusName.confirming });
+    createOrderDTO.orderStatus = orderStatus.id;
+
+    let total_orders = await this.orderModel.countDocuments({ businessId: createOrderDTO.businessId });
+    total_orders++;
+    let stringCounter = total_orders.toString();
+    if (stringCounter.length < 4) {
+      stringCounter = stringCounter.padStart(4, '0');
+    }
+    createOrderDTO.orderNumber = 'OR' + stringCounter;
+
+    if (createOrderDTO.paymentMethod == EnumPaymentMethod.wiiWallet) {
+      const user = await this.userModel.findById(createOrderDTO.customerId);
+
+      if (user.balance < createOrderDTO.total) {
+        throw new NotFoundException(EXCEPTION_CODES.USER.GENERAL, 'insuficientBalanceForOrder');
+      }
+
+      const transaction = await this.createTransaction(createOrderDTO);
+      createOrderDTO.transactionId = Types.ObjectId(transaction.id);
+      const balance_data = new Balance_reserveDTO();
+      balance_data.total = createOrderDTO.total;
+      balance_data.customerId = createOrderDTO.customerId;
+      balance_data.status = BalanceReserveStatus.active;
+
+      const balanceReserve = await this.balanceReserveService.createBalance_reserve(balance_data);
+      createOrderDTO.balanceReserveId = Types.ObjectId(balanceReserve._id);
+      await this.userModel.updateOne({ _id: createOrderDTO.customerId }, { $inc: { balance: -createOrderDTO.total } });
+    } else if (createOrderDTO.paymentMethod == EnumPaymentMethod.acquirer) {
+      if (!createOrderDTO.transactionId) {
+        throw new BadRequestException(EXCEPTION_CODES.SUBSCRIPTION.TRANSACTION_REQUIRED, 'transactionRequired');
+      }
+      const transaction = await this.transactionsModel.findById(createOrderDTO.transactionId);
+
+      if (!transaction) {
+        throw new NotFoundException(EXCEPTION_CODES.ORDER.GENERAL, 'transactionNotFound');
+      }
+      if (transaction.total !== createOrderDTO.total) {
+        throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'diferentOrderTotal');
+      }
+
+      if (transaction.status !== EnumTransactionStatus.completed) {
+        throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'incompleteTransaction');
+      }
+
+      const validate = await this.orderModel.findOne({ transactionId: createOrderDTO.transactionId });
+
+      if (validate) {
+        throw new NotFoundException(EXCEPTION_CODES.ORDER.GENERAL, 'transactionUsed');
+      }
+      createOrderDTO.transactionId = Types.ObjectId(transaction.id);
+      createOrderDTO.cardTermination = transaction.metadata['3dSecureResponse'].tarjeta;
+    } else if (
+      createOrderDTO.paymentMethod == EnumPaymentMethod.physicalCard ||
+      createOrderDTO.paymentMethod == EnumPaymentMethod.cash
+    ) {
+      const transaction = await this.createTransaction(createOrderDTO);
+      createOrderDTO.transactionId = Types.ObjectId(transaction.id);
+    }
+
+    const paymentMethod = await this.paymentMethodModel.findOne({ key: createOrderDTO.paymentMethod });
+    createOrderDTO.paymentMethod = paymentMethod.id;
+
+    await this.prepareProducts(createOrderDTO.orderProducts);
+    
+    let promotion = {}
+    if(createOrderDTO.voucherId){
+      let params = new CheckRedemptionDTO
+      
+      params.voucherId=createOrderDTO.voucherId
+      params.businessId=createOrderDTO.businessId.toString()
+      console.log("CheckRedemptionDTO",params)
+      const id = createOrderDTO.customerId['_id']
+      let responseCoupon = await this.couponService.checkRedemption(params,id)
+      console.log("responseCoupon",responseCoupon)
+      let coupon = {
+        couponCode:responseCoupon.couponID,
+        slug:responseCoupon.slug,
+        userId:id.toString(),
+        userFullname:"",
+        type:responseCoupon.type,
+        amount:responseCoupon.amount,
+        status:"redimido",
+        promotionName: responseCoupon.promotionName,
+        promotionDescription: responseCoupon.description
+      }
+      
+      console.log("ya tengo el cupon, voy a crearlo", coupon)
+      await this.couponService.create(coupon)
+      promotion = coupon;
+      console.log("promotion", promotion)
+    }
+    
+    createOrderDTO.promotion = promotion
+
+
+    const createdOrder = await this.orderModel.create(createOrderDTO);
+
+    this.sendNotification(
+      EnumOrderStatusName.confirming,
+      createdOrder.businessId.toString(),
+      EnumUserType.B2B,
+      createdOrder.orderNumber,
+      createdOrder.id,
+    );
+
+    await createdOrder.populate({ path: 'paymentMethod' }).populate({ path: 'orderStatus' }).execPopulate();
+
+    const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(createdOrder.orderProducts);
+    console.log("createdOrder", createdOrder)
+  
+    const response = new OrderResponseDTO(
+      createdOrder.id,
+      createdOrder.orderStatus,
+      createdOrder.customerId['_id'] ? createdOrder.customerId['_id'] : null,
+      createdOrder.businessId,
+      createdOrder.transactionId,
+      promotion,
+      createdOrder.orderNumber,
+      productDetailList,
+      createdOrder.reasonOfCancelation,
+      createdOrder.deliveryAddress,
+      createdOrder.balanceReserveId,
+      createdOrder.total,
+      createdOrder.qrCode,
+      createdOrder.businessCancelation,
+      createdOrder.cancelationPercentage,
+      createdOrder.deliveryCost,
+      createdOrder.subTotal,
+      createdOrder.tip,
+      createdOrder.comentary,
+      createdOrder.paymentMethod['key'],
+      createdOrder.createdAt,
+      createdOrder.updatedAt,
+      (createdOrder.qualification = createdOrder.qualification ?? undefined),
+      createdOrder.extraCharge,
+      createdOrder.extraChargeComments,
+      createdOrder.cardTermination,
+      createdOrder.serviceType,
+      createdOrder.customerAtRestaurant,
+    );
+
+    return response;
+  }
+
+  /**
+   * Get list of orders of user in session
+   * @return {*}  {Promise<OrderResponseDTO[]>}
+   * @memberof OrderService
+   */
+  async listOrder(userId: string, orderFindDTO: OrderFindDTO): Promise<OrderResponseDTO[]> {
+    orderFindDTO.customerId = Types.ObjectId(userId);
+    const orderList = await this.orderModel
+      .find(orderFindDTO)
+      .sort({ createdAt: -1 })
+      .populate({ path: 'paymentMethod' })
+      .populate({ path: 'orderStatus' })
+      .populate({ path: 'businessId' })
+      .populate({ path: 'deliveryAddress' })
+      .populate({ path: 'customerId' })
+      .exec();
+
+    const response: OrderResponseDTO[] = [];
+
+    for (const createdOrder of orderList) {
+      const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(createdOrder.orderProducts);
+      let url2;
+
+      if (createdOrder.businessId && createdOrder.businessId['businessLogoImageName']) {
+        url2 = await this.s3Service.findImage(createdOrder.businessId['businessLogoImageName']);
+      }
+
+      if (createdOrder.deliveryAddress && createdOrder.deliveryAddress['location']['fixed'] !== true) {
+        const latitude = createdOrder.deliveryAddress['location']['coordinates'][1];
+        const longitude = createdOrder.deliveryAddress['location']['coordinates'][0];
+
+        createdOrder.deliveryAddress['location']['coordinates'][1] = longitude;
+        createdOrder.deliveryAddress['location']['coordinates'][0] = latitude;
+        createdOrder.deliveryAddress['location']['fixed'] = true;
+      }
+      let promotion = {}
+      if(createdOrder.voucherId){
+        console.log(createdOrder.voucherId)
+        let allPromotion = await this.couponModel.find()
+        console.log(allPromotion)
+        allPromotion.map(e=> console.log(e.couponCode, createdOrder.voucherId))
+        promotion= allPromotion.filter(e=> e.couponCode === createdOrder.voucherId)
+      }
+      response.push(
+        new OrderResponseDTO(
+          createdOrder.id,
+          createdOrder.orderStatus,
+          createdOrder.customerId['_id'] ? createdOrder.customerId['_id'] : null,
+          createdOrder.businessId['_id'],
+          createdOrder.transactionId,
+          promotion,
+          createdOrder.orderNumber,
+          productDetailList,
+          createdOrder.reasonOfCancelation,
+          createdOrder.deliveryAddress,
+          createdOrder.balanceReserveId,
+          createdOrder.total,
+          createdOrder.qrCode,
+          createdOrder.businessCancelation,
+          createdOrder.cancelationPercentage,
+          createdOrder.deliveryCost,
+          createdOrder.subTotal,
+          createdOrder.tip,
+          createdOrder.comentary,
+          createdOrder.paymentMethod['key'],
+          createdOrder.createdAt,
+          createdOrder.updatedAt,
+          (createdOrder.qualification = createdOrder.qualification ?? undefined),
+          createdOrder.extraCharge,
+          createdOrder.extraChargeComments,
+          createdOrder.cardTermination,
+          createdOrder.serviceType,
+          createdOrder.customerAtRestaurant,
+          {
+            _id: createdOrder.businessId['_id'],
+            fullBusinessName: createdOrder.businessId['fullBusinessName'],
+            latitude: createdOrder.businessId['location']['coordinates'][1],
+            longitude: createdOrder.businessId['location']['coordinates'][0],
+            address: createdOrder.businessId['address']
+              ? createdOrder.businessId['address']['street'] +
+                ',' +
+                createdOrder.businessId['address']['colony'] +
+                ',' +
+                createdOrder.businessId['address']['state'] +
+                ',' +
+                createdOrder.businessId['address']['town']
+              : null,
+            preparationTime: createdOrder.businessId['configuration']['ordersConfiguration']['preparationTime'],
+            phoneNumber: createdOrder.businessId['phoneNumber'],
+            businessLogoImage: url2
+              ? {
+                  name: createdOrder.businessId['businessLogoImageName'],
+                  url: url2,
+                }
+              : null,
+          },
+          createdOrder.customerId['_id']
+            ? {
+                fullName:
+                  createdOrder.customerId['fullName'] +
+                  ' ' +
+                  createdOrder.customerId['fatherSurname'] +
+                  ' ' +
+                  createdOrder.customerId['motherSurname'],
+                phoneNumber: createdOrder.customerId['phoneNumber'],
+                _id: createdOrder.customerId['_id'],
+              }
+            : undefined,
+        ),
+      );
+    }
+
+    return response;
+  }
+
+  /**
+   * Get a orderList by Id
+   * @param {string} orderId
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async getOrder(orderId: string): Promise<OrderResponseDTO> {
+    const orderList = await this.orderModel
+      .findById(orderId)
+      .populate({ path: 'paymentMethod' })
+      .populate({ path: 'orderStatus' })
+      .populate({ path: 'businessId' })
+      .populate({ path: 'deliveryAddress' })
+      .populate({ path: 'customerId' })
+      .exec();
+
+    if (!orderList) {
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+
+    let url2;
+
+    if (orderList.businessId['businessLogoImageName']) {
+      url2 = await this.s3Service.findImage(orderList.businessId['businessLogoImageName']);
+    }
+    if (orderList.deliveryAddress) {
+      const latitude = orderList.deliveryAddress['location']['coordinates'][1];
+      const longitude = orderList.deliveryAddress['location']['coordinates'][0];
+
+      orderList.deliveryAddress['location']['coordinates'][1] = longitude;
+      orderList.deliveryAddress['location']['coordinates'][0] = latitude;
+    }
+
+    const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(orderList.orderProducts);
+    console.log("productDetailList",productDetailList)
+    let promotion = {}
+    if(orderList.voucherId){
+      console.log(orderList.voucherId)
+      let allPromotion = await this.couponModel.find()
+      console.log(allPromotion)
+      allPromotion.map(e=> console.log(e.couponCode, orderList.voucherId))
+      promotion= allPromotion.filter(e=> e.couponCode === orderList.voucherId)
+    }
+ 
+     
+    console.log("promotion", promotion)
+    let orderProducts = productDetailList
+    const response = new OrderResponseDTO(
+      orderList.id,
+      orderList.orderStatus,
+      orderList.customerId['_id'] ? orderList.customerId['_id'] : null,
+      orderList.businessId['_id'],
+      orderList.transactionId,
+      promotion[0],
+      orderList.orderNumber,
+      orderProducts,
+      orderList.reasonOfCancelation,
+      orderList.deliveryAddress,
+      orderList.balanceReserveId,
+      orderList.total,
+      orderList.qrCode,
+      orderList.businessCancelation,
+      orderList.cancelationPercentage,
+      orderList.deliveryCost,
+      orderList.subTotal,
+      orderList.tip,
+      orderList.comentary,
+      orderList.paymentMethod['key'],
+      orderList.createdAt,
+      orderList.updatedAt,
+      (orderList.qualification = orderList.qualification ?? undefined),
+      orderList.extraCharge,
+      orderList.extraChargeComments,
+      orderList.cardTermination,
+      orderList.serviceType,
+      orderList.customerAtRestaurant,
+      {
+        _id: orderList.businessId['_id'],
+        fullBusinessName: orderList.businessId['fullBusinessName'],
+        latitude: orderList.businessId['location']['coordinates'][1],
+        longitude: orderList.businessId['location']['coordinates'][0],
+        address: orderList.businessId['address']
+          ? orderList.businessId['address']['street'] +
+            ',' +
+            orderList.businessId['address']['colony'] +
+            ',' +
+            orderList.businessId['address']['state'] +
+            ',' +
+            orderList.businessId['address']['town']
+          : null,
+        preparationTime: orderList.businessId['configuration']['ordersConfiguration']['preparationTime'],
+        phoneNumber: orderList.businessId['phoneNumber'],
+        businessLogoImage: url2
+          ? {
+              name: orderList.businessId['businessLogoImageName'],
+              url: url2,
+            }
+          : null,
+      },
+      orderList.customerId['_id']
+        ? {
+            fullName:
+              orderList.customerId['fullName'] +
+              ' ' +
+              orderList.customerId['fatherSurname'] +
+              ' ' +
+              orderList.customerId['motherSurname'],
+            phoneNumber: orderList.customerId['phoneNumber'],
+            _id: orderList.customerId['_id'],
+          }
+        : undefined,
+    );
+
+    return response;
+  }
+
+  /**
+   * Get a orderList filter by status or type
+   * @param {string} filter
+   * @param {string} param
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async getOrderFilter(filter: string, param: string): Promise<OrderResponseDTO[]> {
+    const orderList = await this.orderModel
+      .find({ [filter]: [param] })
+      .populate({ path: 'paymentMethod' })
+      .populate({ path: 'orderStatus' })
+      .exec();
+
+    if (!orderList) {
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+    const response: OrderResponseDTO[] = [];
+   
+    for (const createdOrder of orderList) {
+      const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(createdOrder.orderProducts);
+
+      let promotion = {}
+      if(createdOrder.voucherId){
+        console.log(createdOrder.voucherId)
+        let allPromotion = await this.couponModel.find()
+        console.log(allPromotion)
+        allPromotion.map(e=> console.log(e.couponCode, createdOrder.voucherId))
+        promotion= allPromotion.filter(e=> e.couponCode === createdOrder.voucherId)
+      }
+      
+      response.push(
+        new OrderResponseDTO(
+          createdOrder.id,
+          createdOrder.orderStatus,
+          createdOrder.customerId,
+          createdOrder.businessId,
+          createdOrder.transactionId,
+          promotion,
+          createdOrder.orderNumber,
+          productDetailList,
+          createdOrder.reasonOfCancelation,
+          createdOrder.deliveryAddress,
+          createdOrder.balanceReserveId,
+          createdOrder.total,
+          createdOrder.qrCode,
+          createdOrder.businessCancelation,
+          createdOrder.cancelationPercentage,
+          createdOrder.deliveryCost,
+          createdOrder.subTotal,
+          createdOrder.tip,
+          createdOrder.comentary,
+          createdOrder.paymentMethod['key'],
+          createdOrder.createdAt,
+          createdOrder.updatedAt,
+          (createdOrder.qualification = createdOrder.qualification ?? undefined),
+          createdOrder.extraCharge,
+          createdOrder.extraChargeComments,
+          createdOrder.cardTermination,
+          createdOrder.serviceType,
+          createdOrder.customerAtRestaurant,
+        ),
+      );
+    }
+    return response;
+  }
+
+  /**
+   * Update a productDetail
+   * @param {string} orderId
+   * @param {OrderPatchDTO} orderPatchDTO
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async updateOrder(orderId: string, orderPatchDTO: OrderPatchDTO): Promise<OrderResponseDTO> {
+    orderPatchDTO.updatedAt = new Date();
+    const orderList = await this.orderModel.findOneAndUpdate({ _id: orderId }, orderPatchDTO, {
+      new: true,
+    });
+
+    if (!orderList) {
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+
+    await orderList.populate({ path: 'paymentMethod' }).populate({ path: 'orderStatus' }).execPopulate();
+    const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(orderList.orderProducts);
+
+    let promotion = {}
+    if(orderList.voucherId){
+      console.log(orderList.voucherId)
+      let allPromotion = await this.couponModel.find()
+      console.log(allPromotion)
+      allPromotion.map(e=> console.log(e.couponCode, orderList.voucherId))
+      promotion= allPromotion.filter(e=> e.couponCode === orderList.voucherId)
+    }
+
+    const response = new OrderResponseDTO(
+      orderList.id,
+      orderList.orderStatus,
+      orderList.customerId,
+      orderList.businessId,
+      orderList.transactionId,
+      promotion,
+      orderList.orderNumber,
+      productDetailList,
+      orderList.reasonOfCancelation,
+      orderList.deliveryAddress,
+      orderList.balanceReserveId,
+      orderList.total,
+      orderList.qrCode,
+      orderList.businessCancelation,
+      orderList.cancelationPercentage,
+      orderList.deliveryCost,
+      orderList.subTotal,
+      orderList.tip,
+      orderList.comentary,
+      orderList.paymentMethod['key'],
+      orderList.createdAt,
+      orderList.updatedAt,
+      (orderList.qualification = orderList.qualification ?? undefined),
+      orderList.extraCharge,
+      orderList.extraChargeComments,
+      orderList.cardTermination,
+      orderList.serviceType,
+      orderList.customerAtRestaurant,
+    );
+
+    return response;
+  }
+
+  /**
+   * Update a status oder
+   * @param {string} orderId
+   * @param {OrderStatusPatchDTO} orderStatusPatchDTO
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async updateStatusOrder(
+    orderId: string,
+    userType: EnumUserType,
+    orderStatusPatchDTO: OrderStatusPatchDTO,
+    ip: string,
+  ): Promise<OrderResponseDTO> {
+    let newStatus;
+    console.log("update status order", orderStatusPatchDTO)
+    if (
+      orderStatusPatchDTO.orderStatus === EnumOrderStatusName.inComplaint &&
+      !orderStatusPatchDTO.reasonOfCancelation
+    ) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.GENERAL, 'reasonIsRequired');
+    }
+    if (orderStatusPatchDTO.orderStatus === EnumOrderStatusName.inComplaint) {
+      orderStatusPatchDTO.isComplaint = true;
+      orderStatusPatchDTO.orderStatus = EnumOrderStatusName.canceled;
+    }
+
+    const findOrder = await this.orderModel
+      .findById(orderId)
+      .populate({ path: 'paymentMethod' })
+      .populate({ path: 'orderStatus' })
+      .exec();
+    if (orderStatusPatchDTO.orderStatus) {
+      newStatus = orderStatusPatchDTO.orderStatus;
+      const orderStatus = await this.orderStatusModel.findOne({ name: orderStatusPatchDTO.orderStatus });
+      orderStatusPatchDTO.orderStatus = orderStatus.id;
+
+      if (userType === EnumUserType.B2C_CLIENT) {
+        console.log("aqui envia a update B2C", userType)
+        await this.handleB2CStatusUpdate(newStatus, findOrder, ip);
+        this.sendNotification(
+          newStatus,
+          findOrder.businessId.toString(),
+          EnumUserType.B2B,
+          findOrder.orderNumber,
+          findOrder.id,
+        );
+      } else {
+        console.log("aqui envia a update B2B", userType)
+        await this.handleB2BStatusUpdate(newStatus, findOrder, orderStatusPatchDTO, ip);
+        this.sendNotification(
+          newStatus,
+          findOrder.customerId.toString(),
+          EnumUserType.B2C_CLIENT,
+          findOrder.orderNumber,
+          findOrder.id,
+        );
+      }
+    }
+    orderStatusPatchDTO.updatedAt = new Date();
+    console.log
+    const orderList = await this.orderModel.findOneAndUpdate({ _id: orderId }, orderStatusPatchDTO, {
+      new: true,
+    });
+    console.log("")
+    if (!orderList) {
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+
+    await orderList.populate({ path: 'paymentMethod' }).populate({ path: 'orderStatus' }).execPopulate();
+
+    const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(orderList.orderProducts);
+
+    let promotion = {}
+    if(orderList.voucherId){
+      console.log(orderList.voucherId)
+      let allPromotion = await this.couponModel.find()
+      console.log(allPromotion)
+      allPromotion.map(e=> console.log(e.couponCode, orderList.voucherId))
+      promotion= allPromotion.filter(e=> e.couponCode === orderList.voucherId)
+    }
+
+    const response = new OrderResponseDTO(
+      orderList.id,
+      orderList.orderStatus,
+      orderList.customerId,
+      orderList.businessId,
+      orderList.transactionId,
+      promotion,
+      orderList.orderNumber,
+      productDetailList,
+      orderList.reasonOfCancelation,
+      orderList.deliveryAddress,
+      orderList.balanceReserveId,
+      orderList.total,
+      orderList.qrCode,
+      orderList.businessCancelation,
+      orderList.cancelationPercentage,
+      orderList.deliveryCost,
+      orderList.subTotal,
+      orderList.tip,
+      orderList.comentary,
+      orderList.paymentMethod['key'],
+      orderList.createdAt,
+      orderList.updatedAt,
+      (orderList.qualification = orderList.qualification ?? undefined),
+      orderList.extraCharge,
+      orderList.extraChargeComments,
+      orderList.cardTermination,
+      orderList.serviceType,
+      orderList.customerAtRestaurant,
+    );
+
+    return response;
+  }
+
+  /**
+   * Delete a productDetail
+   * @param {string} orderId
+   * @return {*}  {Promise<void>}
+   * @memberof OrderService
+   */
+  async deleteOrder(orderId: string): Promise<void> {
+    const orderList = await this.orderModel.findById(orderId);
+
+    if (!orderList) {
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+
+    await this.orderModel.findByIdAndDelete(orderId);
+  }
+
+  getProductsList(products: ProductDetailDTO[]): ProductDetailResponseDTO[] {
+    const productsList: ProductDetailResponseDTO[] = [];
+    for (const product of products) {
+      productsList.push(
+        new ProductDetailResponseDTO(
+          product.businessProductId,
+          product.unitPrice,
+          product.amount,
+          product.subTotal,
+          product.name,
+        ),
+      );
+    }
+
+    return productsList;
+  }
+  async prepareProducts(products: ProductDetailDTO[]): Promise<void> {
+    for (const product of products) {
+      const businessProduct = await this.businessMenuService.getProduct(product.businessProductId.toString());
+      product.name = businessProduct.name;
+    }
+  }
+
+  async handleB2CStatusUpdate(newStatus: EnumOrderStatusName, order: OrderDocument, dirIp: string) {
+    const currentStatus = order.orderStatus['name'];
+    this.validateChangeStatus(newStatus, currentStatus);
+    switch (newStatus) {
+      case EnumOrderStatusName.canceled: {
+        await this.cancelOrderFromB2c(currentStatus, order, dirIp);
+        break;
+      }
+      case EnumOrderStatusName.delivered: {
+        const patchTransaction = new TransactionPatchDTO();
+        patchTransaction.status = EnumTransactionStatus.completed;
+        patchTransaction.actionable = true;
+        await this.transactionService.updateTransaction(order.transactionId.toString(), patchTransaction);
+
+        if (order.balanceReserveId) {
+          await this.balanceReserveService.returnBalanceReserveToCustomer(
+            order.balanceReserveId.toString(),
+            BalanceReserveStatus.completed,
+          );
+          const issuerDTO: WiiWalletLogDTO = {
+            amount: order.total * -1,
+            reason: 'Cargo por pedido ' + order.orderNumber,
+            user: order.customerId.toString(),
+            type: EnumWiiWalletLogType.PAYORDER,
+            reference: order.id,
+            referenceType: EnumWiiWalletLogReferenceType.orderId,
+          };
+
+          await this.wiiWalletLogService.UpdateBalance(issuerDTO);
+
+          const receipt: WiiWalletLogDTO = {
+            amount: order.total,
+            reason: 'Abono por pedido ' + order.orderNumber,
+            business: order.businessId.toString(),
+            type: EnumWiiWalletLogType.PAYORDER,
+            reference: order.id,
+            referenceType: EnumWiiWalletLogReferenceType.orderId,
+          };
+
+          await this.wiiWalletLogService.UpdateBalance(receipt);
+        }
+        break;
+      }
+    }
+  }
+
+  async handleB2BStatusUpdate(
+    newStatus: EnumOrderStatusName,
+    order: OrderDocument,
+    orderStatusPatchDTO: OrderStatusPatchDTO,
+    dirIp: string,
+  ) {
+    const currentStatus = order.orderStatus['name'];
+    console.log("currentStatus",currentStatus)
+    this.validateChangeStatus(newStatus, currentStatus);
+    console.log("ya valido el status, entra al case", newStatus)
+    switch (newStatus) {
+      case EnumOrderStatusName.preparing: {
+        orderStatusPatchDTO.qrCode = await this.generateOrderQrCode(order.id);
+        console.log("voy a hacer un update a la orden con el siguiente QR", orderStatusPatchDTO.qrCode)
+        this.orderModel.updateOne(order.id,{qrCode:orderStatusPatchDTO.qrCode})
+        break;
+      }
+      case EnumOrderStatusName.canceled: {
+        await this.cancelOrderFromB2B(currentStatus, order, dirIp);
+        orderStatusPatchDTO.businessCancelation = true;
+        break;
+      }
+      case EnumOrderStatusName.delivered: {
+        const patchTransaction = new TransactionPatchDTO();
+        patchTransaction.status = EnumTransactionStatus.completed;
+        patchTransaction.actionable = true;
+        await this.transactionService.updateTransaction(order.transactionId.toString(), patchTransaction);
+
+        if (order.balanceReserveId) {
+          await this.balanceReserveService.returnBalanceReserveToCustomer(
+            order.balanceReserveId.toString(),
+            BalanceReserveStatus.completed,
+          );
+          const issuerDTO: WiiWalletLogDTO = {
+            amount: order.total * -1,
+            reason: 'Cargo por pedido ' + order.orderNumber,
+            user: order.customerId.toString(),
+            type: EnumWiiWalletLogType.PAYORDER,
+            reference: order.id,
+            referenceType: EnumWiiWalletLogReferenceType.orderId,
+          };
+
+          await this.wiiWalletLogService.UpdateBalance(issuerDTO);
+
+          const receipt: WiiWalletLogDTO = {
+            amount: order.total,
+            reason: 'Abono por pedido ' + order.orderNumber,
+            business: order.businessId.toString(),
+            type: EnumWiiWalletLogType.PAYORDER,
+            reference: order.id,
+            referenceType: EnumWiiWalletLogReferenceType.orderId,
+          };
+
+          await this.wiiWalletLogService.UpdateBalance(receipt);
+        }
+        break;
+      }
+    }
+  }
+
+  /**
+   * Handle B2C
+   * @param {EnumOrderStatusName} currentStatus
+   * @param {Types.ObjectId} balanceReserveId
+   * @param {number} orderTotal
+   * @param {number} cancelationPercentage
+   * @param {string} customerId
+   * @param {string} orderId
+   * @memberof OrderService
+   */
+  async cancelOrderFromB2c(currentStatus: EnumOrderStatusName, order: OrderDocument, dirIp: string) {
+    const findTransaction = await this.transactionsModel.findById(order.transactionId);
+    if (currentStatus === EnumOrderStatusName.canceled || currentStatus === EnumOrderStatusName.inComplaint) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderCanceledAlready');
+    } else if (currentStatus === EnumOrderStatusName.confirming) {
+      if (order.balanceReserveId) {
+        await this.balanceReserveService.returnBalanceReserveToCustomer(
+          order.balanceReserveId.toString(),
+          BalanceReserveStatus.canceled,
+        );
+      } else if (order.paymentMethod['key'] === EnumPaymentMethod.acquirer) {
+        await this.prepareOpenLineaReturn(order.transactionId.toString(), dirIp, findTransaction.total);
+      }
+    } else if (
+      currentStatus === EnumOrderStatusName.preparing ||
+      currentStatus === EnumOrderStatusName.inDelivery ||
+      currentStatus === EnumOrderStatusName.ready
+    ) {
+      let reserve = 0;
+      if (order.balanceReserveId) {
+        const balanceReserve = await this.balanceReserveService.returnBalanceReserveToCustomer(
+          order.balanceReserveId.toString(),
+          BalanceReserveStatus.canceled,
+        );
+        reserve = balanceReserve.total;
+        const discount =
+          Math.round(
+            this.calculateDiscountPerCancelation(reserve, order.cancelationPercentage) * 100 + Number.EPSILON,
+          ) / 100;
+        if (discount > 0) {
+          const issuerDTO: WiiWalletLogDTO = {
+            amount: discount * -1,
+            reason: 'Cargo por cancelación de pedido',
+            user: order.customerId.toString(),
+            type: EnumWiiWalletLogType.CANCELORDER,
+            reference: order.id.toString(),
+            referenceType: EnumWiiWalletLogReferenceType.orderId,
+          };
+
+          await this.wiiWalletLogService.UpdateBalance(issuerDTO);
+        }
+      } else if (order.paymentMethod['key'] === EnumPaymentMethod.acquirer) {
+        const discount = this.calculateDiscountPerCancelation(findTransaction.total, order.cancelationPercentage);
+        const total = Math.round((findTransaction.total - discount) * 100 + Number.EPSILON) / 100;
+        await this.prepareOpenLineaReturn(order.transactionId.toString(), dirIp, total);
+      }
+    }
+    findTransaction.status = EnumTransactionStatus.canceled;
+    findTransaction.canceledAt = new Date();
+    await findTransaction.save();
+  }
+
+  async cancelOrderFromB2B(currentStatus: EnumOrderStatusName, order: OrderDocument, dirIp: string) {
+    const findTransaction = await this.transactionsModel.findById(order.transactionId);
+
+    if (currentStatus === EnumOrderStatusName.canceled || currentStatus === EnumOrderStatusName.inComplaint) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderCanceledAlready');
+    }
+    if (order.balanceReserveId) {
+      await this.balanceReserveService.returnBalanceReserveToCustomer(
+        order.balanceReserveId.toString(),
+        BalanceReserveStatus.canceled,
+      );
+    } else if (order.paymentMethod['key'] === EnumPaymentMethod.acquirer) {
+      await this.prepareOpenLineaReturn(order.transactionId.toString(), dirIp, findTransaction.total);
+    }
+
+    findTransaction.status = EnumTransactionStatus.canceled;
+    findTransaction.canceledAt = new Date();
+    await findTransaction.save();
+  }
+
+  /**
+   * Calculate discount percentage
+   * @param {number} totalOrder
+   * @param {number} cancelationPercentage
+   * @return {*}  {number}
+   * @memberof OrderService
+   */
+  calculateDiscountPerCancelation(totalOrder: number, cancelationPercentage: number): number {
+    return totalOrder * (cancelationPercentage / 100);
+  }
+
+  async generateOrderQrCode(orderId: string) {
+    const base64 = await QRCode.toDataURL(orderId);
+    return base64.split(',')[1];
+  }
+
+  /**
+   * Get orders finished and inProcess
+   * @param {string} ciamId
+   * @param {OrderFindDTO} orderFindDTO
+   * @return {*}  {Promise<OrderB2BResponseDTO>}
+   * @memberof OrderService
+   */
+  async listOrderForB2B(
+    ciamId: string,
+    orderFindDTO: OrderFindDTO,
+  ): Promise<OrderB2BResponseDTO> {
+    const user = await this.userModel.findOne({ ciamId });
+
+    if (user) {
+      const partnerBusiness = await this.businessService.findReferencesOfPartner(user._id);
+      orderFindDTO.businessId = {
+        $in: partnerBusiness,
+      };
+    } else {
+      const business = await this.businessModel.findOne({ ciamId });
+      orderFindDTO.businessId = business._id;
+    }
+
+    const orderList = await this.orderModel
+      .find(orderFindDTO)
+      .sort({ createdAt: -1 })
+      .populate({ path: 'paymentMethod' })
+      .populate({ path: 'orderStatus' })
+      .populate({ path: 'businessId' })
+      .populate({ path: 'deliveryAddress' })
+      .populate({ path: 'customerId' })
+      .exec();
+
+    const inProcess: OrderResponseDTO[] = [];
+    const finished: OrderResponseDTO[] = [];
+
+    for (const createdOrder of orderList) {
+    console.log("Order",createdOrder)
+
+      const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(createdOrder.orderProducts);
+      let url2;
+
+      if (createdOrder.businessId['businessLogoImageName']) {
+        url2 = await this.s3Service.findImage(createdOrder.businessId['businessLogoImageName']);
+      }
+      if (createdOrder.deliveryAddress && createdOrder.deliveryAddress['location']['fixed'] !== true) {
+        const latitude = createdOrder.deliveryAddress['location']['coordinates'][1];
+        const longitude = createdOrder.deliveryAddress['location']['coordinates'][0];
+
+        createdOrder.deliveryAddress['location']['coordinates'][1] = longitude;
+        createdOrder.deliveryAddress['location']['coordinates'][0] = latitude;
+        createdOrder.deliveryAddress['location']['fixed'] = true;
+      }
+      
+    let promotion = {}
+    if(createdOrder.voucherId){
+      console.log(createdOrder.voucherId)
+      let allPromotion = await this.couponModel.find()
+      console.log(allPromotion)
+      allPromotion.map(e=> console.log(e.couponCode, createdOrder.voucherId))
+      promotion= allPromotion.filter(e=> e.couponCode === createdOrder.voucherId)
+    }
+
+      const order = new OrderResponseDTO(
+        createdOrder.id,
+        createdOrder.orderStatus,
+        createdOrder.customerId ? createdOrder.customerId['_id'] : null,
+        createdOrder.businessId['_id'],
+        createdOrder.transactionId,
+        promotion,
+        createdOrder.orderNumber,
+        productDetailList,
+        createdOrder.reasonOfCancelation,
+        createdOrder.deliveryAddress,
+        createdOrder.balanceReserveId,
+        createdOrder.total,
+        createdOrder.qrCode,
+        createdOrder.businessCancelation,
+        createdOrder.cancelationPercentage,
+        createdOrder.deliveryCost,
+        createdOrder.subTotal,
+        createdOrder.tip,
+        createdOrder.comentary,
+        createdOrder.paymentMethod['key'],
+        createdOrder.createdAt,
+        createdOrder.updatedAt,
+        (createdOrder.qualification = createdOrder.qualification ?? undefined),
+        createdOrder.extraCharge,
+        createdOrder.extraChargeComments,
+        createdOrder.cardTermination,
+        createdOrder.serviceType,
+        createdOrder.customerAtRestaurant,
+        {
+          _id: createdOrder.businessId['_id'],
+          fullBusinessName: createdOrder.businessId['fullBusinessName'],
+          latitude: createdOrder.businessId['location']['coordinates'][1],
+          longitude: createdOrder.businessId['location']['coordinates'][0],
+          address: createdOrder.businessId['address']
+            ? createdOrder.businessId['address']['street'] +
+              ',' +
+              createdOrder.businessId['address']['colony'] +
+              ',' +
+              createdOrder.businessId['address']['state'] +
+              ',' +
+              createdOrder.businessId['address']['town']
+            : null,
+          preparationTime: createdOrder.businessId['configuration']['ordersConfiguration']['preparationTime'],
+          phoneNumber: createdOrder.businessId['phoneNumber'],
+          businessLogoImage: url2
+            ? {
+                name: createdOrder.businessId['businessLogoImageName'],
+                url: url2,
+              }
+            : null,
+        },
+        createdOrder.customerId['_id']
+          ? {
+              fullName:
+                createdOrder.customerId['fullName'] +
+                ' ' +
+                createdOrder.customerId['fatherSurname'] +
+                ' ' +
+                createdOrder.customerId['motherSurname'],
+              phoneNumber: createdOrder.customerId['phoneNumber'],
+              _id: createdOrder.customerId['_id'],
+            }
+          : undefined,
+      );
+
+      if (
+        createdOrder.orderStatus['name'] === EnumOrderStatusName.canceled ||
+        createdOrder.orderStatus['name'] === EnumOrderStatusName.delivered
+      ) {
+        finished.push(order);
+      } else {
+        inProcess.push(order);
+      }
+    }
+
+    return new OrderB2BResponseDTO(inProcess, finished);
+  }
+
+  /**
+   * Get last order from logged user
+   * @param {string} userId
+   * @return {*}  {Promise<OrderResponseDTO>}
+   * @memberof OrderService
+   */
+  async getLastOrder(userId: string): Promise<OrderResponseDTO> {
+    const orderStatus = await this.orderStatusModel.findOne({ name: EnumOrderStatusName.delivered });
+
+    const orderList = await this.orderModel
+      .findOne({ customerId: userId, orderStatus: orderStatus._id, qualification: { $exists: false } })
+      .sort({ createdAt: -1 })
+      .populate({ path: 'businessId' });
+
+    if (!orderList) {
+      console.log(orderList);
+      throw new NotFoundException(EXCEPTION_CODES.ORDER.NOT_FOUND_ORDER, 'orderNotFound');
+    }
+
+    const productDetailList: ProductDetailResponseDTO[] = this.getProductsList(orderList.orderProducts);
+
+    let url2;
+
+    if (orderList.businessId['businessLogoImageName']) {
+      url2 = await this.s3Service.findImage(orderList.businessId['businessLogoImageName']);
+    }
+
+    let promotion = {}
+    if(orderList.voucherId){
+      console.log(orderList.voucherId)
+      let allPromotion = await this.couponModel.find()
+      console.log(allPromotion)
+      allPromotion.map(e=> console.log(e.couponCode, orderList.voucherId))
+      promotion= allPromotion.filter(e=> e.couponCode === orderList.voucherId)
+    }
+
+
+    const response = new OrderResponseDTO(
+      orderList.id,
+      orderList.orderStatus,
+      orderList.customerId,
+      orderList.businessId['_id'],
+      orderList.transactionId,
+      promotion,
+      orderList.orderNumber,
+      productDetailList,
+      orderList.reasonOfCancelation,
+      orderList.deliveryAddress,
+      orderList.balanceReserveId,
+      orderList.total,
+      orderList.qrCode,
+      orderList.businessCancelation,
+      orderList.cancelationPercentage,
+      orderList.deliveryCost,
+      orderList.subTotal,
+      orderList.tip,
+      orderList.comentary,
+      orderList.paymentMethod['key'] ? orderList.paymentMethod['key'] : null,
+      orderList.createdAt,
+      orderList.updatedAt,
+      (orderList.qualification = orderList.qualification ?? undefined),
+      orderList.extraCharge,
+      orderList.extraChargeComments,
+      orderList.cardTermination,
+      orderList.serviceType,
+      orderList.customerAtRestaurant,
+      {
+        _id: orderList.businessId['_id'],
+        fullBusinessName: orderList.businessId['fullBusinessName'],
+        latitude: orderList.businessId['location']['coordinates'][1],
+        longitude: orderList.businessId['location']['coordinates'][0],
+        address: orderList.businessId['address']
+          ? orderList.businessId['address']['street'] +
+            ',' +
+            orderList.businessId['address']['colony'] +
+            ',' +
+            orderList.businessId['address']['state'] +
+            ',' +
+            orderList.businessId['address']['town']
+          : null,
+        preparationTime: orderList.businessId['configuration']['ordersConfiguration']['preparationTime'],
+        phoneNumber: orderList.businessId['phoneNumber'],
+        businessLogoImage: url2
+          ? {
+              name: orderList.businessId['businessLogoImageName'],
+              url: url2,
+            }
+          : null,
+      },
+    );
+    return response;
+  }
+
+  /**
+   * Prepare notification
+   * @param {EnumOrderStatusName} orderStatus
+   * @param {*} orderNumber
+   * @return {*}  {OrderNotificationResponseDTO}
+   * @memberof OrderService
+   */
+  prepareNotificationContent(orderStatus: EnumOrderStatusName, orderNumber): OrderNotificationResponseDTO {
+    let message;
+    let subject;
+    if (orderStatus === EnumOrderStatusName.confirming) {
+      message = `Tiene un nuevo pedido (${orderNumber}) por aceptar`;
+      subject = 'Nuevo pedido generado';
+    } else if (orderStatus === EnumOrderStatusName.preparing) {
+      message = `Su pedido (${orderNumber}) esta siendo preparado`;
+      subject = 'Su pedido ha sido actualizado';
+    } else if (orderStatus === EnumOrderStatusName.ready) {
+      message = `Su pedido (${orderNumber}) está listo`;
+      subject = 'Su pedido ha sido actualizado';
+    } else if (orderStatus === EnumOrderStatusName.inDelivery) {
+      message = `Su pedido (${orderNumber}) está en camino a su domicilio`;
+      subject = 'Su pedido ha sido actualizado';
+    } else if (orderStatus === EnumOrderStatusName.canceled) {
+      message = `Su pedido (${orderNumber}) ha sido cancelado`;
+      subject = 'Su pedido ha sido actualizado';
+    } else if (orderStatus === EnumOrderStatusName.delivered) {
+      message = `El pedido (${orderNumber}) ha sido entregado`;
+      subject = 'Pedido entregado';
+    }
+    return new OrderNotificationResponseDTO(subject, message);
+  }
+
+  /**
+   * Send notification
+   * @param {EnumOrderStatusName} newStatus
+   * @param {string} userId
+   * @param {EnumUserType} userTye
+   * @param {OrderDocument} order
+   * @memberof OrderService
+   */
+  async sendNotification(
+    newStatus: EnumOrderStatusName,
+    userId: string,
+    userTye: EnumUserType,
+    orderNumber: string,
+    orderId: string,
+  ) {
+    let wiiWalletAccount, registrationToken;
+
+    if (userTye === EnumUserType.B2B) {
+      // const business = await this.businessService.getBusinessNotificationDetails(userId);
+      //Probando
+      const business = await this.businessService.getBusinessNotificationDetails(userId);
+      console.log("busineessINFO", business);
+      wiiWalletAccount = business.wiiWalletAccount;
+      registrationToken = business.registrationToken;
+    } else {
+      const user = await this.userModel.findById(userId);
+      wiiWalletAccount = user.wiiWalletAccount;
+      registrationToken = user.registrationToken;
+    }
+    if (registrationToken) {
+      const getBody = this.prepareNotificationContent(newStatus, orderNumber);
+
+      const subscriptionNotification = await this.notificationService.preparePushNotification(
+        registrationToken,
+        getBody.subject,
+        getBody.message,
+        EnumPushNotificationType.order,
+        'OPEN_ORDERS',
+        true,
+        true,
+        orderId,
+        newStatus == EnumOrderStatusName.confirming
+          ? EnumOrderNotificationType.new
+          : newStatus == EnumOrderStatusName.canceled
+          ? EnumOrderNotificationType.cancelation
+          : EnumOrderNotificationType.update,
+      );
+      console.log("ANTES DE MANDAR NOTIFICACION",subscriptionNotification)
+      await this.notificationService.sendFireBaseNotification(subscriptionNotification);
+      const createNotification = new NotificationDTO();
+      createNotification.content = subscriptionNotification.data.message;
+      createNotification.subject = subscriptionNotification.data.title;
+      (createNotification.type = EnumPushNotificationType.order),
+        (createNotification.wiiWalletAccount = wiiWalletAccount);
+      createNotification.title = subscriptionNotification.data.title;
+      await this.notificationService.createNotification(createNotification);
+    }
+  }
+
+  async prepareOpenLineaReturn(transactionId: string, dirIp: string, amountToReturn: number) {
+    const findTransaction = await this.transactionsModel.findById(transactionId);
+    if (findTransaction.status !== EnumTransactionStatus.completed) {
+      throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'transactionAlreadyReturned');
+    }
+    if (!findTransaction.metadata || !findTransaction.metadata['3dSecureResponse']) {
+      throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'invalidTransaction');
+    }
+    const openLineaReturnDTO = new OpenLineaReturnDTO();
+    openLineaReturnDTO.codigoAprobacion = findTransaction.metadata['3dSecureResponse']['codigoAprobacion'];
+    openLineaReturnDTO.dirIp = dirIp;
+    openLineaReturnDTO.modo = 'P';
+    openLineaReturnDTO.monto = amountToReturn;
+    openLineaReturnDTO.referencia = findTransaction.metadata['3dSecureResponse']['referenciaTransaccionBancaria'];
+    openLineaReturnDTO.token = findTransaction.metadata['3dSecureResponse']['token'];
+    openLineaReturnDTO.transaccionId = findTransaction.metadata['3dSecureResponse']['transaccionId'];
+
+    try {
+      const response = await this.openLineaService.openLineaReturn(openLineaReturnDTO);
+
+      if (response.codigoRespuesta !== 0) {
+        throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'openLineaError');
+      }
+    } catch (err) {
+      throw new NotAcceptableException(EXCEPTION_CODES.ORDER.GENERAL, 'openLineaError');
+    }
+  }
+
+  validateChangeStatus(newStatus: EnumOrderStatusName, currentStatus: string) {
+    if (
+      currentStatus == EnumOrderStatusName.confirming &&
+      newStatus != EnumOrderStatusName.preparing &&
+      newStatus != EnumOrderStatusName.canceled
+    ) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    } else if (
+      currentStatus == EnumOrderStatusName.preparing &&
+      newStatus != EnumOrderStatusName.inDelivery &&
+      newStatus != EnumOrderStatusName.ready &&
+      newStatus != EnumOrderStatusName.canceled
+    ) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    } else if (
+      currentStatus == EnumOrderStatusName.ready &&
+      newStatus != EnumOrderStatusName.delivered &&
+      newStatus != EnumOrderStatusName.inDelivery &&
+      newStatus != EnumOrderStatusName.canceled
+    ) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    } else if (
+      currentStatus == EnumOrderStatusName.inDelivery &&
+      newStatus != EnumOrderStatusName.delivered &&
+      newStatus != EnumOrderStatusName.canceled
+    ) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    } else if (currentStatus == EnumOrderStatusName.delivered && newStatus != EnumOrderStatusName.canceled) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    } else if (currentStatus == EnumOrderStatusName.canceled && newStatus != EnumOrderStatusName.canceled) {
+      throw new BadRequestException(EXCEPTION_CODES.ORDER.BAD_ORDER_STATUS, 'badOrderStatus');
+    }
+  }
+}
