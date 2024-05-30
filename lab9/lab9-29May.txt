@@ -1,0 +1,116 @@
+# Project name: Shein-shoppingTime
+
+############ Description ############
+## User Management 
+handles all tasks related to user registration, 
+authentication, profile management, and user 
+data storage for authentication.
+
+## Product Catalog 
+manages product listings, including categories,
+subcategories, such as season clothes, gender clothes.
+Search functionality such as name clothes. Product details
+, such as color clothes, size. Inventory, 
+and pricing.
+
+## Order Processing 
+oversees shopping cart management, order creation, 
+payment processing, order tracking, and order history.
+
+## Customer Support 
+provides features for customer queries, support tickets, 
+live chat, and feedback.
+All these functionalities are integrated into a single 
+codebase and share the same database. This means any update 
+or change to one part of the application potentially impacts 
+the entire system. The application's components are tightly 
+coupled, making it challenging to scale or modify individual 
+parts independently.
+
+############ Diagram ############
+Image: lab9_monolitic_diagram.png
+
+############ Migration Roadmap ############
+Let's define the Roadmap by phases...
+
+### Phase 1: Preparation and Planning
+## 1. Assess the current monolithic system (diagram)
+Define business goals and objectives for migration.
+Identify critical components and dependencies.
+
+## 2. Define microservice boundaries using domain-driven design
+Choose the technology stack and tools, in this case Docker.
+which is one of the best ones for e-commerce services
+Set up a basic infrastructure for microservices CI/CD pipeline, 
+container orchestration.
+
+### Phase 2: Infrastructure Setup
+## 1. Set up containerization with Docker
+Configure Kubernetes for orchestration.
+Implement API Gateway and service discovery mechanisms.
+
+## 2. Set up centralized logging, monitoring, and alerting systems
+Create a development environment for microservices.
+Begin designing APIs for each microservice.
+
+### Phase 3: Service Decomposition and Development
+## 1. User Management Microservice
+Extract user registration, authentication, and profile management.
+Develop and deploy the User Management service.
+Redirect user-related traffic from the monolith to the new service.
+Test thoroughly and monitor performance.
+
+## 2. Product Catalog Microservice
+Extract product listings, categories, search functionality, and inventory.
+Develop and deploy the Product Catalog service.
+Redirect relevant traffic from the monolith.
+Conduct integration and performance tests.
+
+## 3. Extract shopping cart management, order creation, payment processing, and tracking.
+Develop and deploy the Order Processing service.
+Redirect order-related traffic.
+Perform extensive testing and monitoring.
+
+## 4. Customer Support Microservice
+Extract customer queries, support tickets, live chat, and feedback.
+Develop and deploy the Customer Support service.
+Redirect support-related traffic.
+Test and ensure stability.
+
+### Phase 4: Data Migration and Consistency
+## 1. Implement data synchronization between the monolithic database and microservice databases.
+Use strategies like event sourcing or CQRS for data consistency.
+Perform data migration for each service incrementally.
+Validate data integrity and ensure consistency across services.
+
+### Phase 5: Testing and Validation
+## 1. Conduct unit, integration, and end-to-end tests for each microservice.
+Perform load and performance testing to identify and address bottlenecks.
+Regularly monitor the system for issues and resolve them promptly.
+
+### Phase 6: Deployment and Rollout
+## 1. Deploy microservices incrementally using the CI/CD pipeline.
+Implement blue-green deployments or canary releases to minimize risks.
+Monitor the live environment closely and ensure a smooth transition.
+
+### Phase 7: Final Cutover and Cleanup
+## 1. Conduct the final cutover from the monolithic application to microservices.
+Retire the monolithic application.
+Clean up any legacy code and data structures.
+Review and optimize the microservices setup for performance and scalability.
+
+## 2. Ongoing Maintenance and Optimization
+Regularly update and maintain microservices.
+Optimize for performance and scalability.
+Stay responsive to user feedback and make necessary improvements.
+
+############ Diagram ############
+Image: lab9_migration_diagram.png
+
+
+
+
+
+
+
+
