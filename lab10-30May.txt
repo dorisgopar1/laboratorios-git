@@ -1,0 +1,130 @@
+### Provided Code Snippets ###
+## 1. 
+function updateList(items) {
+  let list = document.getElementById("itemList");
+  list.innerHTML = "";
+  for (let i = 0; i < items.length; i++) {
+    let listItem = document.createElement("li");
+    listItem.innerHTML = items[i];
+    list.appendChild(listItem);
+  }
+}
+######################
+1. Improvement
+function updateList(items) {
+  const list = document.getElementById("itemList");
+  const fragment = document.createDocumentFragment();
+  // Clear the list
+  list.innerHTML = "";
+  // Create and append list items to the document fragment
+  items.forEach(item => {
+    const listItem = document.createElement("li");
+    listItem.textContent = item;
+    fragment.appendChild(listItem);
+  });
+  // Append the fragment to the list
+  list.appendChild(fragment);
+}
+
+2. Refactoring
+function updateList(items) {
+  const list = 
+    document.getElementById("itemList");
+  const fragment = 
+    document.createDocumentFragment();
+
+  // Clear the list
+  list.innerHTML = "";
+  // Create and append list items to the document fragment
+  items.forEach(item => {
+    const listItem = 
+      document.createElement("li");
+    listItem.textContent = item;
+    fragment.appendChild(listItem);
+  });
+  // Append the fragment to the list
+  list.appendChild(fragment);
+}
+
+#################################################
+#################################################
+
+## 2. 
+public class ProductLoader {
+    public List<Product> loadProducts() {
+        List<Product> products = new ArrayList<>();
+        for (int id = 1; id <= 100; id++) {
+            products.add(database.getProductById(id));
+        }
+        return products;
+    }
+}
+#######################
+1. Improvement
+public class ProductLoader {
+    public List<Product> loadProducts() {
+        // Assuming `database.getAllProducts` fetches all products in a single query
+        return database.getAllProducts();
+    }
+}
+2. Refactoring
+public class ProductLoader {
+    private final Database database;
+    // Constructor to initialize the database dependency
+    public ProductLoader(Database database) {
+        this.database = database;
+    }
+    public List<Product> loadProducts() {
+        // Fetch all products in a single query and return
+        return database.getAllProducts();
+    }
+}
+
+public List<Product> loadProducts() {
+    try {
+        // Fetch all products in a single query and return
+        return database.getAllProducts();
+    } catch (DatabaseException e) {
+        // Handle the exception, possibly returning an empty list or rethrowing a custom exception
+        System.err.println("Failed to load products: " + e.getMessage());
+        return Collections.emptyList();
+    }
+}
+#################################################
+#################################################
+
+## 3. 
+public List<int> ProcessData(List<int> data) {
+    List<int> result = new List<int>();
+    foreach (var d in data) {
+        if (d % 2 == 0) {
+            result.Add(d * 2);
+        } else {
+            result.Add(d * 3);
+        }
+    }
+    return result;
+}
+#################################################
+1. Improvement
+public List<int> ProcessData(List<int> data) {
+    return data.Select(d => d % 2 == 0 ? d * 2 : d * 3).ToList();
+}
+
+2. Refactoring
+using System.Collections.Generic;
+using System.Linq;
+public class DataProcessor
+{
+    public List<int> ProcessData(List<int> data)
+    {
+        return data.Select(ProcessItem).ToList();
+    }
+    private int ProcessItem(int d)
+    {
+        return d % 2 == 0 ? d * 2 : d * 3;
+    }
+}
+
+#################################################
+#################################################
