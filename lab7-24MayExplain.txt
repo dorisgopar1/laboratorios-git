@@ -1,0 +1,49 @@
+########################### Design Problem Solving ###########################
+## 1.  Global Configuration Management: Design a system that ensures a single, globally accessible configuration object without access conflicts.
+It's the singleton pattern. it ensures that one and only one instances of the configuration object 
+exists throughtout the application, make it accessible for anywhere
+This is excellent for maintain for consistency and allows
+for easy modification for configuration settings.
+In adition, we can use Observer pattern to notify components
+of changes for the configuration, ensuring that they always 
+have the most up-to-date info 
+At the example: configManager uses the singleton pattern bcz there's
+only one instance throughout the application
+
+## 2. Dynamic Object Creation Based on User Input: Implement a system to dynamically create various types of user interface elements based on user actions.
+Factory method is the good one pattern for creating objects in a superclass but
+allows subclasses to alter type of objects which will be created. Based
+on the user input, we can determine which subclass or Factory
+to use. And after that use that Factory to create the
+appropriate flexibility and scalability in our applications design
+At the example: I prompt the user to enter the class name as an object of
+then I load the class with Class.forName wich it represents the name of the class
+the the instance using reflection clazz.getDeclaredConstructor
+
+
+## 3. State Change Notification Across System Components: Ensure components are notified about changes in the state of other parts without creating tight coupling.
+Observer pattern as I said before, it defines a subject, 
+in this case observable that maintains a list of its dependents, which are the
+observers. The state of the subject changes, it notifies all observers
+by calling a method design on each observer. Observers also can react to the state change as needed
+At the example: first the Subjectinterface defines methods for adding
+and notif to the observers. Then with ConcreteObserver we implement the Subjectinterface, this maintainsa state
+and notifies observers. The observer interface will update observers. finally
+ConcreteObserver imple obser interface and register the subject, updating the notifies
+At the end the main method create both ConcreteSubject and 2 ConcreteObservers
+
+
+## 4. Efficient Management of Asynchronous Operations: Manage multiple asynchronous operations like API calls which need to be coordinated without blocking the main application workflow.
+for an efficient management is the Asynchronousoperation pattern
+first of all it uses asynchronous methods to perform time-consuming tasks 
+such as API calls without blocking the main thread. this helps our application to
+remain responsive while waiting for the operations to complete.
+Then this pattern can implement a mechanism to track the completion of asynchronous operations
+each operation is associated with a complain token or dependens on it, could be a callback
+function that gets invoke when the operation finishes
+At the example: CompletableFuture class is for performing asynchronous operations. We're simulating 2 asynchronous
+operations from a remote API. The async operation fetches data w a remote API
+the second async ope is processing the fetching data when is available
+to finally call the running method thenRun to handle these operations
+The main thread continues executing while the async ope are running
+at the background.
